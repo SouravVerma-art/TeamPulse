@@ -11,12 +11,17 @@ import (
 
 // Client wraps the OpenAI client for GitHub Models.
 type Client struct {
-	inner *openai.Client
-	model string
+	inner   *openai.Client
+	model   string
+	offline bool
 }
 
 // New creates a new AI client pointing to GitHub Models using the provided token.
 func New(apiKey string) *Client {
+	if strings.TrimSpace(apiKey) == "" {
+		return &Client{offline: true, model: "demo-fallback"}
+	}
+
 	config := openai.DefaultConfig(apiKey)
 	config.BaseURL = "https://models.inference.ai.azure.com"
 
@@ -35,8 +40,17 @@ func (c *Client) Close() {
 	// No-op
 }
 
+// IsOffline returns true if the client is in demo fallback mode (no API key provided).
+func (c *Client) IsOffline() bool {
+	return c.offline
+}
+
 // Complete sends a prompt to the model and returns the raw text response.
 func (c *Client) Complete(ctx context.Context, prompt string) (string, error) {
+	if c.offline {
+		return "", fmt.Errorf("ai: GITHUB_TOKEN not set; using demo fallback")
+	}
+
 	req := openai.ChatCompletionRequest{
 		Model: c.model,
 		Messages: []openai.ChatCompletionMessage{
@@ -50,6 +64,10 @@ func (c *Client) Complete(ctx context.Context, prompt string) (string, error) {
 
 	resp, err := c.inner.CreateChatCompletion(ctx, req)
 	if err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, "The `models` permission is required") {
+			return "", fmt.Errorf("ai: 401 Unauthorized - Your GITHUB_TOKEN is missing the 'GitHub Models' account permission. Please go to GitHub Settings -> Developer Settings -> Fine-grained tokens -> [Your Token] -> Account permissions -> Models and set to 'Read-only'.")
+		}
 		return "", fmt.Errorf("ai: generate content failed: %w", err)
 	}
 
@@ -62,6 +80,10 @@ func (c *Client) Complete(ctx context.Context, prompt string) (string, error) {
 
 // CompleteJSON sends a prompt and unmarshals the response into the target interface.
 func (c *Client) CompleteJSON(ctx context.Context, prompt string, target any) error {
+	if c.offline {
+		return fmt.Errorf("ai: GITHUB_TOKEN not set; using demo fallback")
+	}
+
 	req := openai.ChatCompletionRequest{
 		Model: c.model,
 		Messages: []openai.ChatCompletionMessage{
@@ -75,6 +97,10 @@ func (c *Client) CompleteJSON(ctx context.Context, prompt string, target any) er
 
 	resp, err := c.inner.CreateChatCompletion(ctx, req)
 	if err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, "The `models` permission is required") {
+			return fmt.Errorf("ai: 401 Unauthorized - Your GITHUB_TOKEN is missing the 'GitHub Models' account permission. Please go to GitHub Settings -> Developer Settings -> Fine-grained tokens -> [Your Token] -> Account permissions -> Models and set to 'Read-only'.")
+		}
 		return fmt.Errorf("ai: generate JSON content failed: %w", err)
 	}
 
@@ -84,12 +110,20 @@ func (c *Client) CompleteJSON(ctx context.Context, prompt string, target any) er
 
 	raw := resp.Choices[0].Message.Content
 
-	// Many models wrap JSON in markdown blocks even when asked not to
+	// Many models wrap JSON in markdown blocks or include conversational filler
 	raw = strings.TrimSpace(raw)
-	raw = strings.TrimPrefix(raw, "```json")
-	raw = strings.TrimPrefix(raw, "```")
-	raw = strings.TrimSuffix(raw, "```")
-	raw = strings.TrimSpace(raw)
+	
+	// Find the first occurrence of [ or {
+	startIndex := strings.IndexAny(raw, "[{")
+	if startIndex != -1 {
+		raw = raw[startIndex:]
+	}
+	
+	// Find the last occurrence of ] or }
+	endIndex := strings.LastIndexAny(raw, "}]")
+	if endIndex != -1 {
+		raw = raw[:endIndex+1]
+	}
 
 	if err := json.Unmarshal([]byte(raw), target); err != nil {
 		return fmt.Errorf("ai: failed to parse JSON response: %w\nraw: %s", err, raw)

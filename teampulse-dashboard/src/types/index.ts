@@ -1,5 +1,4 @@
-// ─── Insight types ────────────────────────────────────────────────────────────
-
+// Insight types
 export type InsightPriority = "high" | "medium" | "low";
 
 export type InsightLabel =
@@ -14,10 +13,12 @@ export interface Insight {
   text: string;
   priority: InsightPriority;
   agent: string;
+  reasoning?: string;
+  created_at?: string;
+  source_content?: string;
 }
 
-// ─── Agent result ─────────────────────────────────────────────────────────────
-
+// Agent result
 export interface AgentResult {
   agent_name: string;
   insights: Insight[];
@@ -26,8 +27,7 @@ export interface AgentResult {
   error?: string;
 }
 
-// ─── Morning brief ────────────────────────────────────────────────────────────
-
+// Morning brief
 export interface MorningBrief {
   generated_at: string;
   user_name: string;
@@ -39,8 +39,7 @@ export interface MorningBrief {
   agent_results: AgentResult[];
 }
 
-// ─── SSE trace events ─────────────────────────────────────────────────────────
-
+// SSE trace events
 export type TraceEventType =
   | "system"
   | "agent"
@@ -57,8 +56,7 @@ export interface TraceEvent {
   brief?: MorningBrief;
 }
 
-// ─── Swarm status ─────────────────────────────────────────────────────────────
-
+// Swarm status
 export type SwarmStatus = "idle" | "running" | "done" | "error";
 
 export interface AgentStatus {

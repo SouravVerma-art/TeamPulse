@@ -53,10 +53,14 @@ const (
 )
 
 type Insight struct {
-	Label    InsightType     `json:"label"`
-	Text     string          `json:"text"`
-	Priority InsightPriority `json:"priority"`
-	Agent    string          `json:"agent"`
+	Label         InsightType     `json:"label"`
+	Text          string          `json:"text"`
+	Priority      InsightPriority `json:"priority"`
+	Agent         string          `json:"agent"`
+	Reasoning     string          `json:"reasoning,omitempty"`
+	CreatedAt     string          `json:"created_at,omitempty"`
+	SourceContent string          `json:"source_content,omitempty"`
+	SourceSender  string          `json:"source_sender,omitempty"`
 }
 
 type AgentResult struct {
@@ -86,4 +90,22 @@ type TraceEvent struct {
 	Type    string `json:"type"` // "system" | "agent" | "done" | "conflict" | "complete"
 	Message string `json:"message"`
 	Agent   string `json:"agent,omitempty"`
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+
+type SendEmailRequest struct {
+	To      string `json:"to"`
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
+	RefID   string `json:"ref_id,omitempty"` // Original email ID
+}
+
+// ─── System settings model ───────────────────────────────────────────────────
+
+type SystemSettings struct {
+	AutoRun            bool              `json:"auto_run"`
+	EmailNotifications bool              `json:"email_notifications"`
+	IntegrationStatus  map[string]bool   `json:"integration_status"`
+	FieldValues        map[string]string `json:"field_values"`
 }

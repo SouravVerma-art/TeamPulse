@@ -1,4 +1,5 @@
 import { InsightPriority, InsightLabel } from "@/types";
+import { clsx } from "clsx";
 
 type BadgeVariant =
   | InsightPriority
@@ -13,48 +14,59 @@ type BadgeVariant =
 
 const STYLES: Record<BadgeVariant, string> = {
   // priority
-  high:      "bg-[#FFE5E5] text-[#B03030]",
-  medium:    "bg-[#F1D89C] text-[#7D5A1E]",
-  low:       "bg-[#BFE7C6] text-[#2D6A4F]",
+  high:      "bg-error/10 text-error",
+  medium:    "bg-warning-amber/10 text-warning-amber",
+  low:       "bg-infrastructure-green/10 text-infrastructure-green",
   // status
-  delivered: "bg-[#BFE7C6] text-[#2D6A4F]",
-  archived:  "bg-[#F1D89C] text-[#7D5A1E]",
-  active:    "bg-[#BFE7C6] text-[#2D6A4F]",
-  idle:      "bg-[#F5F1EB] text-[#6B6B6B] border border-[#E5DED5]",
-  waiting:   "bg-[#F5F1EB] text-[#6B6B6B] border border-[#E5DED5]",
-  running:   "bg-[#F1D89C] text-[#7D5A1E]",
-  done:      "bg-[#BFE7C6] text-[#2D6A4F]",
-  error:     "bg-[#FFE5E5] text-[#B03030]",
+  delivered: "bg-infrastructure-green/10 text-infrastructure-green",
+  archived:  "bg-warning-amber/10 text-warning-amber",
+  active:    "bg-infrastructure-green/10 text-infrastructure-green",
+  idle:      "bg-black/5 text-on-surface-variant border border-black/10",
+  waiting:   "bg-black/5 text-on-surface-variant border border-black/10",
+  running:   "bg-warning-amber/10 text-warning-amber",
+  done:      "bg-infrastructure-green/10 text-infrastructure-green",
+  error:     "bg-error/10 text-error",
 };
 
 interface BadgeProps {
   variant: BadgeVariant;
   label?: string;
+  className?: string;
 }
 
-export function Badge({ variant, label }: BadgeProps) {
+const DOT_COLORS: Partial<Record<BadgeVariant, string>> = {
+  done: "bg-infrastructure-green",
+  running: "bg-warning-amber animate-pulse",
+  active: "bg-infrastructure-green",
+  error: "bg-error",
+  waiting: "bg-on-surface-variant/40",
+};
+
+export function Badge({ variant, label, className }: BadgeProps) {
+  const dotColor = DOT_COLORS[variant];
+  
   return (
     <span
-      className={`
-        inline-block text-[10px] font-medium uppercase tracking-[0.08em]
-        px-2 py-[3px] rounded-[4px] whitespace-nowrap
-        ${STYLES[variant] ?? STYLES.idle}
-      `}
+      className={clsx(
+        "inline-flex items-center gap-1.5 font-mono text-sm font-medium uppercase tracking-wide px-2.5 py-0.5 rounded-full whitespace-nowrap",
+        STYLES[variant] ?? STYLES.idle,
+        className
+      )}
     >
+      {dotColor && <span className={clsx("w-1.5 h-1.5 rounded-full", dotColor)} />}
       {label ?? variant}
     </span>
   );
 }
 
-// Priority tag — fixed min-width for alignment in briefing card
+// Priority tag with fixed width for alignment in briefing cards.
 export function PriorityTag({ priority }: { priority: InsightPriority }) {
   return (
     <span
-      className={`
-        inline-block text-[10px] font-semibold uppercase tracking-[0.1em]
-        px-[10px] py-1 rounded-[4px] whitespace-nowrap min-w-[68px] text-center
-        ${STYLES[priority]}
-      `}
+      className={clsx(
+        "inline-block font-mono text-sm font-medium uppercase tracking-wide px-2.5 py-0.5 rounded-full whitespace-nowrap min-w-[72px] text-center",
+        STYLES[priority]
+      )}
     >
       {priority}
     </span>
@@ -64,19 +76,18 @@ export function PriorityTag({ priority }: { priority: InsightPriority }) {
 // Label tag for insight type (Decision, Blocker, etc.)
 export function LabelTag({ label }: { label: InsightLabel }) {
   const labelStyles: Record<InsightLabel, string> = {
-    Decision: "bg-[#E6F1FB] text-[#185FA5]",
-    Blocker:  "bg-[#FFE5E5] text-[#B03030]",
-    Conflict: "bg-[#FFE5E5] text-[#B03030]",
-    Action:   "bg-[#F1D89C] text-[#7D5A1E]",
-    Update:   "bg-[#F5F1EB] text-[#6B6B6B] border border-[#E5DED5]",
+    Decision: "bg-surface-container-high text-ink-black border border-black/10",
+    Blocker:  "bg-error/10 text-error",
+    Conflict: "bg-error/10 text-error",
+    Action:   "bg-warning-amber/10 text-warning-amber",
+    Update:   "bg-black/5 text-on-surface-variant border border-black/10",
   };
   return (
     <span
-      className={`
-        inline-block text-[10px] font-semibold uppercase tracking-[0.08em]
-        px-2 py-[3px] rounded-[4px] whitespace-nowrap
-        ${labelStyles[label] ?? "bg-[#F5F1EB] text-[#6B6B6B]"}
-      `}
+      className={clsx(
+        "inline-block font-mono text-sm font-medium uppercase tracking-wide px-2.5 py-0.5 rounded-full whitespace-nowrap",
+        labelStyles[label] ?? "bg-black/5 text-on-surface-variant"
+      )}
     >
       {label}
     </span>

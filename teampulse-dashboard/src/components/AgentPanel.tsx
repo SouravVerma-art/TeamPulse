@@ -1,83 +1,65 @@
 "use client";
 
-import { AgentStatus } from "@/types";
 import { Badge } from "./Badge";
+import type { AgentStatus } from "@/types";
+import { useRouter, usePathname } from "next/navigation";
 
-interface AgentPanelProps {
-  agents: AgentStatus[];
-  lastRun?: string;
-}
+export function AgentPanel({ agents, lastRun }: { agents: AgentStatus[]; lastRun?: string }) {
+  const router = useRouter();
+  const pathname = usePathname();
 
-export function AgentPanel({ agents, lastRun }: AgentPanelProps) {
+  const scrollToTrace = () => {
+    if (pathname === "/") {
+      const element = document.getElementById("execution-trace");
+      element?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      router.push("/#execution-trace");
+    }
+  };
+
   return (
-    <div
-      className="bg-white border border-[#E5DED5] overflow-hidden flex flex-col h-full"
-      style={{ borderRadius: 16 }}
-    >
-      <div className="px-6 py-5 border-b border-[#F0EBE3]">
-        <p className="text-[11px] uppercase tracking-widest text-[#6B6B6B] font-medium mb-1">
-          Swarm Status
-        </p>
-        <h3 className="text-base font-semibold text-[#1F1F1F]">
-          Active Agents
-        </h3>
+    <div className="rounded-2xl border border-outline-variant bg-white p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <p className="font-mono text-sm uppercase tracking-wide text-ink-black">Active Agents</p>
+        {lastRun && (
+          <p className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">Last Run: {lastRun}</p>
+        )}
       </div>
-
-      <div className="px-6 py-2 flex-1">
-        {agents.map((agent, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between py-3.5 border-b border-[#F0EBE3] last:border-0 transition-all duration-300"
-          >
+      <div className="flex flex-col gap-5">
+        {agents.map((agent) => (
+          <div key={agent.name} className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="text-base w-7 text-center">{agent.icon}</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-outline-variant bg-surface font-mono text-base text-ink-black shadow-sm">{agent.icon}</div>
               <div>
-                <p className="text-sm font-medium text-[#1F1F1F]">{agent.name}</p>
-                <p className="text-xs text-[#6B6B6B] mt-0.5">
-                  {agent.parsedN !== undefined
-                    ? `${agent.parsedN} items`
-                    : "—"}
-                  {agent.latency ? ` · ${agent.latency}` : ""}
-                </p>
+                <p className="font-mono text-base font-medium text-ink-black">{agent.name}</p>
+                <p className="mt-0.5 font-mono text-xs text-on-surface-variant uppercase tracking-wider">{agent.parsedN ?? 0} mins / {agent.latency ?? "1 hr"}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {agent.status === "running" && (
-                <span className="flex gap-0.5">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="inline-block w-1 h-1 rounded-full bg-[#F1D89C] animate-bounce"
-                      style={{ animationDelay: `${i * 0.15}s` }}
-                    />
-                  ))}
-                </span>
-              )}
+            <div className="flex items-center gap-3">
               <Badge variant={agent.status} />
+              <button
+                onClick={scrollToTrace}
+                className="hidden font-mono text-[10px] font-medium uppercase tracking-widest text-on-surface-variant hover:text-ink-black xl:block border border-outline-variant/30 px-2 py-1 rounded-full hover:bg-surface-container transition-all"
+              >
+                {agent.status === "running" ? "STOP" : "VIEW_LOGS"}
+              </button>
             </div>
           </div>
         ))}
       </div>
-
-      <div
-        className="px-6 py-4 border-t border-[#F0EBE3]"
-        style={{ background: "#FAFAF7" }}
-      >
-        <div className="flex items-center gap-2">
-          <span
-            style={{
-              width: 7, height: 7,
-              borderRadius: "50%",
-              background: "#BFE7C6",
-              display: "inline-block",
-            }}
-          />
-          <p className="text-xs text-[#6B6B6B]">
-            {lastRun
-              ? `Last run ${lastRun}`
-              : "No runs yet"}
-          </p>
-        </div>
+      <div className="mt-8 flex gap-3">
+        <button
+          onClick={scrollToTrace}
+          className="flex-1 rounded-full border border-outline-variant bg-surface-container py-2 text-center font-mono text-sm font-medium text-on-surface-variant transition-all hover:bg-outline-variant/20 hover:text-ink-black active:scale-[0.98]"
+        >
+          TRACE_NODE
+        </button>
+        <button
+          onClick={scrollToTrace}
+          className="flex-1 rounded-full border border-black/10 bg-ink-black py-2 text-center font-mono text-sm font-medium text-white transition-all hover:bg-ink-black/90 active:scale-[0.98]"
+        >
+          VIEW_SWARM
+        </button>
       </div>
     </div>
   );

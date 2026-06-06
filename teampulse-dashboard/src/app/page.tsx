@@ -1,219 +1,128 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSwarm } from "@/hooks/useSwarm";
-import { Navbar }       from "@/components/Navbar";
-import { StatCard }     from "@/components/StatCard";
-import { TraceLog }     from "@/components/TraceLog";
+import { AlertTriangle, CalendarDays, ListTodo, Mail, Clock } from "lucide-react";
+import { useSwarmContext } from "@/context/SwarmContext";
+import { StatCard } from "@/components/StatCard";
+import { TraceLog } from "@/components/TraceLog";
 import { BriefingCard } from "@/components/BriefingCard";
-import { AgentPanel }   from "@/components/AgentPanel";
-import { FeatureCards, CTASection, Footer } from "@/components/Misc";
+import { AgentPanel } from "@/components/AgentPanel";
+import { Footer } from "@/components/Misc";
+import { clsx } from "clsx";
+import { ENDPOINTS } from "@/lib/api";
+import type { AgentStatus, MorningBrief, TraceEvent } from "@/types";
+
+const NULL_BRIEF: MorningBrief = {
+  generated_at: "",
+  user_name: "User",
+  email_count: 0,
+  meeting_count: 0,
+  ticket_count: 0,
+  conflicts_found: 0,
+  agent_results: [],
+  insights: [],
+};
+
+const INITIAL_AGENTS: AgentStatus[] = [
+  { name: "Meeting Agent", icon: "M", status: "waiting", latency: "0ms", parsedN: 0 },
+  { name: "Inbox Agent", icon: "I", status: "waiting", latency: "0ms", parsedN: 0 },
+  { name: "Ticket Agent", icon: "T", status: "waiting", latency: "0ms", parsedN: 0 },
+  { name: "Orchestrator", icon: "O", status: "waiting", latency: "0ms", parsedN: 0 },
+];
 
 export default function DashboardPage() {
-  const [mounted, setMounted] = useState(false);
-  const [showTrace, setShowTrace] = useState(false);
-  const [{ status, traceLines, agents, brief, error }, { run, reset }] =
-    useSwarm();
+  const [showTrace, setShowTrace] = useState(true);
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  const { status, traceLines, agents, brief, error, run, reset, userName } = useSwarmContext();
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setCurrentTime(new Date());
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const isRunning = status === "running";
+  const displayBrief = brief 
+    ? { ...brief, user_name: userName } 
+    : { ...NULL_BRIEF, user_name: userName };
+  const displayAgents = status === "idle" && !brief ? INITIAL_AGENTS : agents;
+  const displayTrace = traceLines;
 
-  // Derive stats from brief if available, else show defaults
-  const emailCount   = brief?.email_count   ?? 47;
-  const meetingCount = brief?.meeting_count ?? 3;
-  const ticketCount  = brief?.ticket_count  ?? 12;
-  const conflicts    = brief?.conflicts_found ?? 1;
+  const timeStr = currentTime?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const dateStr = currentTime?.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
 
-  const lastRunTime = brief
-    ? new Date(brief.generated_at).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : undefined;
+  const lastRunTime = displayBrief.generated_at 
+    ? new Date(displayBrief.generated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "Never";
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F5F1EB" }}>
-      <Navbar swarmStatus={status} agentCount={agents.length} />
-
-      <main className="max-w-7xl mx-auto px-6 py-10">
-
-        {/* ── Hero ────────────────────────────────────────────────── */}
-        <div
-          className={`mb-10 transition-all duration-700 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          <p className="text-[11px] uppercase tracking-widest text-[#6B6B6B] font-medium mb-3">
-            AI Work Intelligence
-          </p>
-          <div className="flex items-end justify-between flex-wrap gap-4">
-            <div>
-              <h1
-                className="font-bold text-[#1F1F1F] leading-tight"
-                style={{ fontSize: 38, letterSpacing: "-0.02em" }}
-              >
-                Your team&apos;s second brain.
-              </h1>
-              <p className="text-[#6B6B6B] mt-2.5 text-base max-w-lg leading-relaxed">
-                A multi-agent swarm that watches your meetings, inbox, and
-                tickets — then delivers one clear, actionable morning brief.
-              </p>
-            </div>
-
-            {/* Controls */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowTrace((v) => !v)}
-                className="transition-all duration-150"
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13, fontWeight: 500,
-                  borderRadius: 10,
-                  padding: "9px 18px",
-                  background: "#fff",
-                  border: "1px solid #E5DED5",
-                  color: "#6B6B6B",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  (e.target as HTMLButtonElement).style.borderColor = "#C8BFB5";
-                  (e.target as HTMLButtonElement).style.color = "#1F1F1F";
-                }}
-                onMouseLeave={(e) => {
-                  (e.target as HTMLButtonElement).style.borderColor = "#E5DED5";
-                  (e.target as HTMLButtonElement).style.color = "#6B6B6B";
-                }}
-              >
-                {showTrace ? "Hide trace" : "Show trace"}
-              </button>
-
-              {status === "done" && (
-                <button
-                  onClick={reset}
-                  className="transition-all duration-150"
-                  style={{
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 13, fontWeight: 500,
-                    borderRadius: 10,
-                    padding: "9px 18px",
-                    background: "#fff",
-                    border: "1px solid #E5DED5",
-                    color: "#6B6B6B",
-                    cursor: "pointer",
-                  }}
-                >
-                  Reset
-                </button>
+    <div className="min-h-screen bg-canvas-off-white">
+      <main className="mx-auto flex w-full max-w-container-max flex-col gap-12 px-gutter py-8">
+        <section className="flex flex-col items-start justify-between gap-6 border-b border-outline-variant pb-8 md:flex-row md:items-end">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <p className="font-mono text-sm uppercase tracking-wide text-on-surface-variant">AI Work Intelligence</p>
+              {currentTime && (
+                <>
+                  <div className="w-1 h-1 rounded-full bg-outline-variant" />
+                  <div className="flex items-center gap-1.5 font-mono text-sm font-medium text-ink-black uppercase tracking-wide">
+                    <Clock size={14} className="text-on-surface-variant" /> {dateStr} • {timeStr}
+                  </div>
+                </>
               )}
-
-              <button
-                onClick={run}
-                disabled={isRunning}
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13, fontWeight: 500,
-                  borderRadius: 10,
-                  padding: "9px 18px",
-                  background: "#1F1F1F",
-                  color: "#fff",
-                  border: "none",
-                  cursor: isRunning ? "not-allowed" : "pointer",
-                  opacity: isRunning ? 0.5 : 1,
-                  transition: "all 0.15s ease",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isRunning)
-                    (e.target as HTMLButtonElement).style.background = "#333";
-                }}
-                onMouseLeave={(e) => {
-                  (e.target as HTMLButtonElement).style.background = "#1F1F1F";
-                }}
-              >
-                {isRunning ? "Running swarm…" : "▶  Run swarm"}
-              </button>
             </div>
+            <h1 className="mb-4 text-5xl font-medium leading-tight tracking-tight text-ink-black md:text-6xl">Your team&apos;s second brain.</h1>
+            <p className="text-xl leading-[1.6] text-on-surface-variant">A multi-agent system that watches your team&apos;s conversations and tickets, then delivers one clear, actionable morning brief.</p>
           </div>
-
-          {/* Error banner */}
-          {error && (
-            <div
-              className="mt-4 px-4 py-3 text-sm text-[#B03030]"
-              style={{
-                background: "#FFE5E5",
-                borderRadius: 10,
-                border: "1px solid #F0B0B0",
-              }}
+          <div className="flex flex-wrap gap-4">
+            <button 
+              onClick={() => {
+                console.log("Toggle Trace clicked");
+                setShowTrace((value) => !value);
+              }} 
+              className="glass-panel rounded-lg px-6 py-3 font-mono text-sm uppercase tracking-wide text-on-surface-variant hover:text-ink-black active:scale-95"
             >
-              {error}
-            </div>
-          )}
-        </div>
-
-        {/* ── Stat cards ──────────────────────────────────────────── */}
-        <div
-          className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          <StatCard label="Emails Triaged"   value={emailCount}   sub="This morning"     accentPct={72} />
-          <StatCard label="Meetings Parsed"  value={meetingCount} sub="Since Friday"      accentPct={60} />
-          <StatCard label="Tickets Scanned"  value={ticketCount}  sub="Open + blocked"   accentPct={40} />
-          <StatCard label="Conflicts Found"  value={conflicts}    sub="Detected by swarm" accentPct={conflicts > 0 ? 20 : 0} />
-        </div>
-
-        {/* ── Trace log (toggle) ──────────────────────────────────── */}
-        {showTrace && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] uppercase tracking-widest text-[#6B6B6B] font-medium">
-                Agent Execution Trace
-              </p>
-              <span
-                className="text-xs text-[#6B6B6B]"
-                style={{ fontFamily: "IBM Plex Mono, monospace" }}
-              >
-                SSE stream · live
-              </span>
-            </div>
-            <TraceLog lines={traceLines} running={isRunning} />
+              {showTrace ? "Hide Trace" : "Show Trace"}
+            </button>
+            <button 
+              onClick={() => {
+                console.log("Reset clicked");
+                reset();
+              }} 
+              className="glass-panel rounded-lg px-6 py-3 font-mono text-sm uppercase tracking-wide text-on-surface-variant hover:text-ink-black active:scale-95"
+            >
+              Reset
+            </button>
+            <button 
+              onClick={() => {
+                console.log("Run Swarm clicked");
+                run();
+              }} 
+              disabled={isRunning} 
+              className={clsx("rounded-lg bg-ink-black px-6 py-3 font-mono text-sm font-medium uppercase tracking-wide text-white transition-all hover:opacity-90 active:scale-95", isRunning && "cursor-not-allowed opacity-40")}
+            >
+              {isRunning ? "Running..." : "Run Swarm"}
+            </button>
           </div>
-        )}
+        </section>
 
-        {/* ── Main 2-col layout ───────────────────────────────────── */}
-        <div
-          className={`grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 transition-all duration-700 delay-200 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          <div className="lg:col-span-2">
-            <BriefingCard brief={brief} status={status} />
+        {error && <div className="rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-base font-medium text-error">{error}</div>}
+
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Emails Processed" value={displayBrief.email_count.toLocaleString()} eyebrow="This Month" sub="Scanned across all inboxes." icon={Mail} settingsHref="/settings#inbox" />
+          <StatCard label="Meetings Played" value={displayBrief.meeting_count} eyebrow="This Week" sub="Analysed with decision extraction." icon={CalendarDays} settingsHref="/settings#meetings" />
+          <StatCard label="Tickets Scanned" value={displayBrief.ticket_count} eyebrow="Open + Blocked" sub="In Jira and DevOps projects." icon={ListTodo} settingsHref="/settings#tickets" />
+          <StatCard label="Conflicts Found" value={displayBrief.conflicts_found} eyebrow="Critical Issues" sub="Requiring immediate resolution." icon={AlertTriangle} alert settingsHref="/settings#conflicts" />
+        </section>
+
+        <section id="insights-section" className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2"><BriefingCard brief={displayBrief} status={status} /></div>
+          <div className="flex flex-col gap-6">
+            <AgentPanel agents={displayAgents} lastRun={lastRunTime} />
+            {showTrace && <TraceLog lines={displayTrace} running={isRunning} />}
           </div>
-          <div>
-            <AgentPanel agents={agents} lastRun={lastRunTime} />
-          </div>
-        </div>
-
-        {/* ── Feature cards ───────────────────────────────────────── */}
-        <div
-          className={`mb-10 transition-all duration-700 delay-300 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          <FeatureCards />
-        </div>
-
-        {/* ── CTA ─────────────────────────────────────────────────── */}
-        <div
-          className={`mb-10 transition-all duration-700 delay-400 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          <CTASection />
-        </div>
-
+        </section>
       </main>
-
       <Footer />
     </div>
   );

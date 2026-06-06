@@ -10,10 +10,10 @@ import {
 import { ENDPOINTS } from "@/lib/api";
 
 const INITIAL_AGENTS: AgentStatus[] = [
-  { name: "Meeting Agent", icon: "🎙", status: "waiting" },
-  { name: "Inbox Agent",   icon: "📬", status: "waiting" },
-  { name: "Ticket Agent",  icon: "🎫", status: "waiting" },
-  { name: "Orchestrator",  icon: "🧠", status: "waiting" },
+  { name: "Meeting Agent", icon: "M", status: "waiting" },
+  { name: "Inbox Agent", icon: "I", status: "waiting" },
+  { name: "Ticket Agent", icon: "T", status: "waiting" },
+  { name: "Orchestrator", icon: "O", status: "waiting" },
 ];
 
 export interface SwarmState {
@@ -80,7 +80,7 @@ export function useSwarm(): [SwarmState, SwarmControls] {
       }
 
       if (event.type === "done" && event.agent) {
-        // Parse latency from message e.g. "Meeting Agent ✓ done (1.2s)"
+        // Parse latency from messages such as "Meeting Agent done (1.2s)".
         const latencyMatch = event.message.match(/\((\d+\.\d+s)\)/);
         updateAgent(event.agent, {
           status: "done",
