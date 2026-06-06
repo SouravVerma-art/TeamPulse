@@ -22,7 +22,7 @@ func (a *TicketAgent) Run(ctx context.Context, tickets []models.JiraTicket, trac
 	start := time.Now()
 	name := "Ticket Agent"
 
-	trace <- models.TraceEvent{Type: "agent", Agent: name, Message: fmt.Sprintf("Ticket Agent → scanning %d tickets", len(tickets))}
+	trace <- models.TraceEvent{Type: "agent", Agent: name, Message: fmt.Sprintf("Ticket Agent scanning %d tickets", len(tickets))}
 
 	var ticketBlock string
 	for _, t := range tickets {
@@ -43,36 +43,51 @@ Rules:
 - Summarise each issue in one clear sentence (max 15 words)
 
 Return ONLY a valid JSON array. No markdown, no explanation.
-Format: [{"label":"...","text":"...","priority":"..."}]
+Format: [{"label":"...","text":"...","priority":"...","reasoning":"...","created_at":"...","source_id":"..."}]
 
 Where label is one of: "Blocker", "Action", "Update", "Decision"
+Where reasoning is a brief explanation (1 sentence) of why this ticket was flagged.
+Where created_at is the last updated timestamp of the ticket in RFC3339.
+Where source_id is the ID of the ticket.
 
 Tickets:
 %s`, ticketBlock)
 
 	var raw []struct {
-		Label    string `json:"label"`
-		Text     string `json:"text"`
-		Priority string `json:"priority"`
+		Label     string `json:"label"`
+		Text      string `json:"text"`
+		Priority  string `json:"priority"`
+		Reasoning string `json:"reasoning"`
+		CreatedAt string `json:"created_at"`
+		SourceID  string `json:"source_id"`
 	}
 
-	if err := a.client.CompleteJSON(ctx, prompt, &raw); err != nil {
-		trace <- models.TraceEvent{Type: "system", Agent: name, Message: fmt.Sprintf("Ticket Agent ✗ error: %v", err)}
-		return models.AgentResult{AgentName: name, Error: err.Error()}
+	if err := a.client.CompleteJSON(ctx, prompt, &raw); err != nil || len(raw) == 0 {
+		trace <- models.TraceEvent{Type: "system", Agent: name, Message: fmt.Sprintf("Ticket Agent done - no insights extracted")}
+		return models.AgentResult{AgentName: name, Insights: nil, Latency: fmt.Sprintf("%.1fs", time.Since(start).Seconds()), ParsedN: len(tickets)}
+	}
+
+	// Create a lookup for full content
+	contentMap := make(map[string]string)
+	for _, t := range tickets {
+		contentMap[t.ID] = t.Description
 	}
 
 	insights := make([]models.Insight, 0, len(raw))
 	for _, r := range raw {
 		insights = append(insights, models.Insight{
-			Label:    models.InsightType(r.Label),
-			Text:     r.Text,
-			Priority: models.InsightPriority(r.Priority),
-			Agent:    name,
+			Label:         models.InsightType(r.Label),
+			Text:          r.Text,
+			Priority:      models.InsightPriority(r.Priority),
+			Agent:         name,
+			Reasoning:     r.Reasoning,
+			CreatedAt:     r.CreatedAt,
+			SourceContent: contentMap[r.SourceID],
 		})
 	}
 
 	latency := fmt.Sprintf("%.1fs", time.Since(start).Seconds())
-	trace <- models.TraceEvent{Type: "done", Agent: name, Message: fmt.Sprintf("Ticket Agent ✓ done (%s) — %d insights", latency, len(insights))}
+	trace <- models.TraceEvent{Type: "done", Agent: name, Message: fmt.Sprintf("Ticket Agent done (%s) - %d insights", latency, len(insights))}
 
 	return models.AgentResult{
 		AgentName: name,

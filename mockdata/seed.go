@@ -1,7 +1,7 @@
 package mockdata
 
 import (
-	"fmt"
+
 	"time"
 
 	"github.com/teampulse/backend/models"
@@ -9,157 +9,162 @@ import (
 
 var now = time.Now()
 
-// ─── Mock meeting transcripts ─────────────────────────────────────────────────
+// ─── Mock meeting transcripts (Product Manager Perspective) ──────────────────
 
 var Meetings = []models.MeetingTranscript{
 	{
-		ID:         "mtg-001",
-		Title:      "Q3 Sprint Planning",
-		OccurredAt: now.Add(-72 * time.Hour),
-		Attendees:  []string{"Sarah", "Marcus", "Priya", "Dev Team"},
-		Transcript: `Marcus: Alright, let's lock in the sprint goals. We're pushing the onboarding redesign to week two.
-Sarah: Agreed. Also — the deploy to staging was approved by leadership. We can move forward with that.
-Priya: I'll coordinate with design. Can we get the mockups by Thursday?
-Marcus: Should be fine. One concern — the new auth service conflicts with the Q3 roadmap item we discussed last month.
-Sarah: That's a real problem. Let's flag that for the orchestrator to catch. We need resolution before EOD Friday.
-Marcus: Noted. Action item: Sarah to follow up with design team on new onboarding mockups by Thursday.`,
-	},
-	{
-		ID:         "mtg-002",
-		Title:      "Infrastructure Cost Review",
-		OccurredAt: now.Add(-48 * time.Hour),
-		Attendees:  []string{"Sarah", "Ops Team", "Finance"},
-		Transcript: `Ops Lead: Infrastructure costs are up 18% this quarter. Mostly compute for the new ML pipeline.
-Sarah: We need a Jira ticket for this — track it against the cost reduction initiative.
-Finance: Agreed. This has to be resolved before the board meeting.
-Ops Lead: I'll create the ticket now and assign to the infra team.
-Sarah: Good. Also flagging that PR #447 has been sitting for three days without a review.
-Marcus [async]: I'll get to it today, sorry for the delay.`,
-	},
-	{
-		ID:         "mtg-003",
-		Title:      "Weekly Sync — Product & Engineering",
+		ID:         "mtg-roadmap-01",
+		Title:      "Q4 Roadmap Strategy Review",
 		OccurredAt: now.Add(-24 * time.Hour),
-		Attendees:  []string{"Sarah", "Product", "Engineering Leads"},
-		Transcript: `Product: The new onboarding flow is a priority for this sprint. Design is 80% done.
-Sarah: Engineering is ready to pick it up as soon as mockups land.
-Lead: One blocker — we're waiting on the API contract from the backend team.
-Sarah: I'll chase that up today.
-Product: Also — the sprint goal around user activation needs to be reconciled with the Q3 roadmap. There may be a conflict.`,
+		Attendees:  []string{"Elliot (PM)", "Marcus (Eng Lead)", "Priya (Design)"},
+		Transcript: `Elliot: Thanks for joining. We need to lock the Q4 roadmap. Marcus, what's the status of the 'Advanced Analytics' module?
+Marcus: We're running into a bottleneck. The data warehouse API is slower than expected. We might need to push the release by two weeks.
+Priya: If we push that, the dashboard redesign I'm working on won't have any data to show.
+Elliot: That's a conflict. We can't ship a hollow dashboard. Let's prioritize the API optimization first.
+Marcus: Agreed. I'll reassign the team to focus on the backend performance immediately.
+Elliot: Okay. Action item: Marcus to provide a new technical ETA by Friday. Priya, hold on the high-fidelity mockups until the API contract is stable.`,
+	},
+	{
+		ID:         "mtg-customer-02",
+		Title:      "Enterprise Prospect: Acme Corp Sync",
+		OccurredAt: now.Add(-48 * time.Hour),
+		Attendees:  []string{"Elliot (PM)", "Jason (Sales)", "Customer Success"},
+		Transcript: `Jason: Acme Corp is ready to sign, but they need 'Bulk Data Export' functionality. They say it's a dealbreaker.
+Elliot: We don't have that on the roadmap until next year. How urgent is this?
+Jason: They won't sign without it. They have a compliance audit in November.
+Elliot: Understood. I'll need to check with Engineering if we can swap something out for this.
+Jason: Please let me know soon. They're also looking at our competitor.`,
+	},
+	{
+		ID:         "mtg-retro-03",
+		Title:      "Sprint 22 Retrospective",
+		OccurredAt: now.Add(-72 * time.Hour),
+		Attendees:  []string{"Product Team", "Engineering", "QA"},
+		Transcript: `Elliot: Good sprint, but QA was a bit of a scramble at the end.
+QA Lead: We're getting builds too late in the cycle. The 'Payment Gateway' PR was merged on Thursday afternoon.
+Marcus: Sorry about that, the SSO refactor took longer than expected.
+Elliot: We need to improve the handoff. Let's try a 'Feature Freeze' 48 hours before the sprint ends next time.
+QA Lead: That would definitely help.`,
 	},
 }
 
-// ─── Mock email logs ──────────────────────────────────────────────────────────
+// ─── Mock email logs (Incoming to PM Elliot) ──────────────────────────────────
 
 var Emails = []models.EmailLog{
 	{
 		ID:         "email-001",
-		From:       "marcus@company.com",
-		Subject:    "RE: PR #447 — Auth Service Refactor",
-		Body:       "Hey Sarah, just flagging that PR #447 has been open for 3 days. I haven't had bandwidth to review. Can someone else pick it up or should I prioritise?",
-		ReceivedAt: now.Add(-4 * time.Hour),
+		From:       "marcus.eng@teampulse.dev",
+		Subject:    "BLOCKER: Data Warehouse API Limitations",
+		Body:       "Hi Elliot, following up on our sync. The warehouse API simply can't handle the load for 'Bulk Export' without a complete cache redesign. This is a 3-week effort, not a quick fix. We need to decide if we're delaying the Q4 Analytics launch.",
+		ReceivedAt: now.Add(-2 * time.Hour),
 		IsRead:     false,
 		Priority:   "high",
 	},
 	{
 		ID:         "email-002",
-		From:       "design@company.com",
-		Subject:    "Onboarding Mockups — Ready for Review",
-		Body:       "Hi team, the new onboarding mockups are ready. Please review and provide feedback by Thursday EOD so engineering can start next sprint.",
-		ReceivedAt: now.Add(-6 * time.Hour),
+		From:       "jason.sales@teampulse.dev",
+		Subject:    "RE: Acme Corp - Urgent Update needed",
+		Body:       "Hey Elliot, just checking in. Acme Corp's CTO just called. He wants to know if we can commit to the Bulk Export by November 15th. If we say yes, the contract is ours. Can we make it happen?",
+		ReceivedAt: now.Add(-4 * time.Hour),
 		IsRead:     false,
 		Priority:   "high",
 	},
 	{
 		ID:         "email-003",
-		From:       "ops@company.com",
-		Subject:    "Jira Ticket Created — Infra Cost Spike",
-		Body:       "Ticket INFRA-209 has been created to track the 18% infrastructure cost increase. Assigned to the infra team with a target resolution of end of quarter.",
-		ReceivedAt: now.Add(-8 * time.Hour),
+		From:       "priya.design@teampulse.dev",
+		Subject:    "Dashboard V2 - Design Handoff",
+		Body:       "Hi Elliot, I've updated the Figma files based on the Roadmap Review. Since we're prioritizing API performance, I've added some 'loading state' explorations. Let me know if you have time for a 10m walkthrough.",
+		ReceivedAt: now.Add(-6 * time.Hour),
 		IsRead:     true,
 		Priority:   "medium",
 	},
 	{
 		ID:         "email-004",
-		From:       "finance@company.com",
-		Subject:    "Board Meeting Prep — Cost Review Required",
-		Body:       "Sarah, we need the infrastructure cost reduction plan included in the board deck. Deadline is Friday. Please coordinate with Ops.",
-		ReceivedAt: now.Add(-10 * time.Hour),
+		From:       "customer.support@teampulse.dev",
+		Subject:    "Alert: Increase in 'Billing' tickets",
+		Body:       "We've seen a 20% spike in tickets related to 'Invoices not generating'. Seems to have started after the Monday deploy. Marcus is aware but hasn't assigned anyone yet.",
+		ReceivedAt: now.Add(-8 * time.Hour),
 		IsRead:     false,
 		Priority:   "high",
 	},
 	{
 		ID:         "email-005",
-		From:       "product@company.com",
-		Subject:    "Sprint Goal Conflict — Needs Discussion",
-		Body:       "Hi Sarah, spotted a potential conflict between our sprint activation goal and the Q3 roadmap item (OKR-14). Think we need a quick call to align before planning locks in.",
-		ReceivedAt: now.Add(-12 * time.Hour),
-		IsRead:     false,
-		Priority:   "high",
+		From:       "finance@teampulse.dev",
+		Subject:    "Q4 Budget Guidelines - FINAL",
+		Body:       "Elliot, please find the attached budget for the product org. We've had to trim the AWS spend by 5%. This will affect our ability to scale the ML training clusters. Please adjust the roadmap accordingly.",
+		ReceivedAt: now.Add(-10 * time.Hour),
+		IsRead:     true,
+		Priority:   "medium",
 	},
 }
 
-// Pad to simulate 47 emails
-func init() {
-	for i := 6; i <= 47; i++ {
-		Emails = append(Emails, models.EmailLog{
-			ID:         "email-" + fmt.Sprintf("%03d", i),
-			From:       "team@company.com",
-			Subject:    "FYI — Weekly Update",
-			Body:       "Routine update. No action required.",
-			ReceivedAt: now.Add(-time.Duration(i) * time.Hour),
-			IsRead:     true,
-			Priority:   "low",
-		})
-	}
-}
-
-// ─── Mock Jira tickets ────────────────────────────────────────────────────────
+// ─── Mock Jira tickets (PM Scoping & Tracking) ────────────────────────────────
 
 var Tickets = []models.JiraTicket{
 	{
-		ID:          "PR-447",
-		Title:       "Auth Service Refactor",
-		Status:      "blocked",
-		Assignee:    "Marcus",
-		LastUpdated: now.Add(-72 * time.Hour),
-		Description: "Refactor the auth service to support the new SSO provider. PR open and waiting for review.",
-		Labels:      []string{"backend", "auth", "blocked"},
-	},
-	{
-		ID:          "INFRA-209",
-		Title:       "Infrastructure Cost Spike — 18% Increase",
-		Status:      "open",
-		Assignee:    "Ops Team",
-		LastUpdated: now.Add(-8 * time.Hour),
-		Description: "Compute costs up 18% QoQ due to ML pipeline expansion. Investigate and reduce.",
-		Labels:      []string{"infra", "cost", "priority"},
-	},
-	{
-		ID:          "OKR-14",
-		Title:       "User Activation — Q3 Roadmap",
+		ID:          "TP-401",
+		Title:       "Investigate Warehouse API Performance",
 		Status:      "in_progress",
-		Assignee:    "Product",
+		Assignee:    "Marcus (Eng Lead)",
+		LastUpdated: now.Add(-3 * time.Hour),
+		Description: "Identify bottlenecks in the analytics query engine. Blocking Q4 Roadmap items.",
+		Labels:      []string{"backend", "blocker", "q4-roadmap"},
+	},
+	{
+		ID:          "TP-402",
+		Title:       "Bulk Data Export for Enterprise Compliance",
+		Status:      "open",
+		Assignee:    "Elliot (PM)",
+		LastUpdated: now.Add(-2 * time.Hour),
+		Description: "Scoped based on Acme Corp request. Requires architectural review for Compliance/Legal.",
+		Labels:      []string{"feature", "sales-blocker", "high-priority"},
+	},
+	{
+		ID:          "TP-403",
+		Title:       "Fix: Invoices Not Generating correctly",
+		Status:      "open",
+		Assignee:    "Platform Team",
+		LastUpdated: now.Add(-8 * time.Hour),
+		Description: "Regression in the billing service. Affecting all tier-1 customers.",
+		Labels:      []string{"bug", "urgent", "billing"},
+	},
+	{
+		ID:          "TP-404",
+		Title:       "Dashboard V2 Frontend Implementation",
+		Status:      "blocked",
+		Assignee:    "Frontend Team",
 		LastUpdated: now.Add(-24 * time.Hour),
-		Description: "Drive user activation rate from 42% to 60% by end of Q3.",
-		Labels:      []string{"okr", "product", "q3"},
+		Description: "Blocked by API contract finalization from Backend Team.",
+		Labels:      []string{"ui", "blocked"},
 	},
 	{
-		ID:          "ENG-88",
-		Title:       "Onboarding API Contract",
+		ID:          "TP-405",
+		Title:       "Q4 Budget Realignment",
 		Status:      "open",
-		Assignee:    "Backend Team",
-		LastUpdated: now.Add(-36 * time.Hour),
-		Description: "Define and publish the API contract for the new onboarding flow.",
-		Labels:      []string{"api", "onboarding", "blocker"},
+		Assignee:    "Elliot (PM)",
+		LastUpdated: now.Add(-12 * time.Hour),
+		Description: "Reduce ML training cluster costs by 5% to meet new finance guidelines.",
+		Labels:      []string{"ops", "finance"},
 	},
-	{
-		ID:          "ENG-91",
-		Title:       "Board Meeting — Cost Reduction Plan",
-		Status:      "open",
-		Assignee:    "Sarah",
-		LastUpdated: now.Add(-10 * time.Hour),
-		Description: "Prepare infrastructure cost reduction plan for board meeting. Deadline: Friday.",
-		Labels:      []string{"board", "finance", "deadline"},
+}
+
+var DefaultSettings = models.SystemSettings{
+	AutoRun:            false,
+	EmailNotifications: true,
+	IntegrationStatus: map[string]bool{
+		"Microsoft Teams": true,
+		"Slack":           false,
+		"Jira":            true,
+		"GitHub":          true,
+	},
+	FieldValues: map[string]string{
+		"Microsoft Teams workspace": "Product Launch",
+		"Zoom cloud folder":         "Launch Readiness",
+		"Primary mailbox":           "elliot@teampulse.dev",
+		"Priority label":            "Needs reply",
+		"Jira project":              "MOB",
+		"GitHub repo":               "teampulse/app",
+		"Risk threshold":            "Medium",
+		"Escalation owner":          "Elliot",
 	},
 }

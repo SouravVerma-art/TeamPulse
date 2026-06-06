@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -12,15 +13,69 @@ import (
 	"github.com/teampulse/backend/ai"
 	"github.com/teampulse/backend/mockdata"
 	"github.com/teampulse/backend/models"
+	"github.com/teampulse/backend/services"
 )
 
 // Handler holds dependencies for all HTTP handlers.
 type Handler struct {
-	aiClient *ai.Client
+	aiClient     *ai.Client
+	emailService *services.EmailService
+	settings     *models.SystemSettings
+	mu           sync.RWMutex
 }
 
 func New(client *ai.Client) *Handler {
-	return &Handler{aiClient: client}
+	// Create a copy of default settings
+	s := mockdata.DefaultSettings
+	
+	// Dynamically override Primary mailbox if GMAIL_USER is set
+	email := os.Getenv("GMAIL_USER")
+	if email != "" {
+		fmt.Printf("[CONFIG] Autofilling Primary mailbox with: %s\n", email)
+		if s.FieldValues != nil {
+			s.FieldValues["Primary mailbox"] = email
+		}
+	} else {
+		fmt.Println("[CONFIG] GMAIL_USER not set, using default mailbox")
+	}
+
+	return &Handler{
+		aiClient:     client,
+		emailService: services.NewEmailService(),
+		settings:     &s,
+	}
+}
+
+// ─── GET /settings ────────────────────────────────────────────────────────────
+
+func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(h.settings)
+}
+
+// ─── POST /settings ───────────────────────────────────────────────────────────
+
+func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var newSettings models.SystemSettings
+	if err := json.NewDecoder(r.Body).Decode(&newSettings); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	h.mu.Lock()
+	h.settings = &newSettings
+	h.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 }
 
 // ─── POST /brief ──────────────────────────────────────────────────────────────
@@ -42,7 +97,7 @@ func (h *Handler) Brief(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	brief, err := runSwarm(ctx, h.aiClient, trace)
+	brief, err := runSwarm(ctx, h.aiClient, h.settings, trace)
 	close(trace)
 
 	if err != nil {
@@ -88,7 +143,7 @@ func (h *Handler) BriefStream(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	brief, err := runSwarm(ctx, h.aiClient, trace)
+	brief, err := runSwarm(ctx, h.aiClient, h.settings, trace)
 	close(trace)
 	<-done // wait for all events to flush
 
@@ -123,24 +178,54 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ─── POST /email/send ─────────────────────────────────────────────────────────
+
+func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.SendEmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	// Actual email delivery
+	err := h.emailService.SendEmail(req.To, req.Subject, req.Body)
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to send email: %v\n", err)
+		http.Error(w, fmt.Sprintf("failed to send email: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Printf("[SUCCESS] Sent email to %s\n", req.To)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "sent", "message": "Email sent successfully"})
+}
+
 // ─── Shared swarm runner ──────────────────────────────────────────────────────
 // This is the core of the concurrent engine.
 // Three agents fire simultaneously via goroutines.
 // A WaitGroup blocks until all three complete.
 // The orchestrator then merges their outputs.
 
-func runSwarm(ctx context.Context, g *ai.Client, trace chan<- models.TraceEvent) (models.MorningBrief, error) {
+func runSwarm(ctx context.Context, g *ai.Client, settings *models.SystemSettings, trace chan<- models.TraceEvent) (models.MorningBrief, error) {
 	trace <- models.TraceEvent{Type: "system", Message: "Initializing agent swarm..."}
 
 	meetingAgent := agents.NewMeetingAgent(g)
 	inboxAgent := agents.NewInboxAgent(g)
 	ticketAgent := agents.NewTicketAgent(g)
 	orchestrator := agents.NewOrchestrator(g)
+	emailService := services.NewEmailService()
 
 	var (
 		wg      sync.WaitGroup
 		mu      sync.Mutex
 		results []models.AgentResult
+		emails  []models.EmailLog
 	)
 
 	addResult := func(r models.AgentResult) {
@@ -149,10 +234,22 @@ func runSwarm(ctx context.Context, g *ai.Client, trace chan<- models.TraceEvent)
 		mu.Unlock()
 	}
 
+	// ── Fetch Real Emails ──
+	trace <- models.TraceEvent{Type: "system", Message: "Fetching live emails from Gmail..."}
+	liveEmails, err := emailService.FetchRecentEmails(10)
+	if err != nil {
+		trace <- models.TraceEvent{Type: "system", Message: fmt.Sprintf("Email fetch failed: %v. Falling back to demo data.", err)}
+		emails = mockdata.Emails
+	} else {
+		emails = liveEmails
+		trace <- models.TraceEvent{Type: "system", Message: fmt.Sprintf("Successfully fetched %d live emails.", len(emails))}
+	}
+
 	// ── Goroutine 1: Meeting Agent ──
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		// Using demo meeting data for the hackathon showcase
 		r := meetingAgent.Run(ctx, mockdata.Meetings, trace)
 		addResult(r)
 	}()
@@ -161,7 +258,7 @@ func runSwarm(ctx context.Context, g *ai.Client, trace chan<- models.TraceEvent)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		r := inboxAgent.Run(ctx, mockdata.Emails, trace)
+		r := inboxAgent.Run(ctx, emails, trace)
 		addResult(r)
 	}()
 
@@ -169,6 +266,7 @@ func runSwarm(ctx context.Context, g *ai.Client, trace chan<- models.TraceEvent)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		// Using demo ticket data for the hackathon showcase
 		r := ticketAgent.Run(ctx, mockdata.Tickets, trace)
 		addResult(r)
 	}()
@@ -180,18 +278,25 @@ func runSwarm(ctx context.Context, g *ai.Client, trace chan<- models.TraceEvent)
 		return models.MorningBrief{}, err
 	}
 
-	trace <- models.TraceEvent{Type: "agent", Agent: "Orchestrator", Message: "All agents done — passing to Orchestrator..."}
+	trace <- models.TraceEvent{Type: "agent", Agent: "Orchestrator", Message: "All agents done - passing to Orchestrator..."}
 
 	// Orchestrate
 	brief, err := orchestrator.Merge(
 		ctx, results,
-		len(mockdata.Emails),
+		len(emails),
 		len(mockdata.Meetings),
 		len(mockdata.Tickets),
 		trace,
 	)
 	if err != nil {
 		return models.MorningBrief{}, fmt.Errorf("swarm: orchestration failed: %w", err)
+	}
+
+	// Personalize with Escalation owner from settings
+	if settings != nil && settings.FieldValues != nil {
+		if name, ok := settings.FieldValues["Escalation owner"]; ok && name != "" {
+			brief.UserName = name
+		}
 	}
 
 	return brief, nil
